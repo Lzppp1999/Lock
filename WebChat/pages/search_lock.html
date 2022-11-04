@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport"
+			content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<style>
+			body {
+				background-image: url(../images/index.jpg);
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">搜索 Lock</h1>
+		</header>
+		<div class="mui-content index-body">
+			<ul class="mui-table-view">
+				<li class="mui-table-view-cell mui-media">
+					<div class="mui-media-body " style="font-size: 1rem;">
+						<label style="line-height: 2.625rem;">用户名：</label>
+						<input type="text" id="Lock_username" placeholder="输入手机号"
+							style="width: 65%; height: 40%; margin-bottom: 0;" />
+						<span id="search" class="mui-pull-right mui-icon mui-icon-search mui-media-object"
+							style="font-size: 1.875rem;margin-right: 2%;"></span>
+					</div>
+				</li>
+			</ul>
+			<br />
+			<ul class="mui-table-view" id="result_list" style="display: none;">
+				<li class="mui-table-view-cell mui-media">
+					<img id="faceImg" class="mui-pull-left" src="../images/bird.png"
+						style="border-radius: 0.3125rem;padding: 0;width: 3.125rem;" />
+					<label id="nickname" style="float: left;margin-left: 0.5rem;width: 50%;">拉拉</label>
+					<p id="username" style="float: left;margin-left: 0.5rem;width: 50%;margin-top: 0.625rem;">123456</p>
+					<img id="send" src="../images/add.svg" class="mui-pull-right"
+						style="width: 2.1875rem;margin-top:-0.9375rem; " />
+				</li>
+			</ul>
+		</div>
+
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init({
+				beforeback:function(){
+					var thisView = plus.webview.currentWebview();
+					var scan = thisView.opener();
+					// var mylock = scan.opener();
+					if(scan.id=="scan_lock"){
+						plus.webview.hide(scan);
+						plus.webview.close(scan);
+						plus.webview.show("my_lock");
+					}
+					return true;
+				}
+			});
+			mui.plusReady(function() {
+				document.getElementById("result_list").style.display = "none";
+				var myinfo = app.getUserGlobalInfo();
+				var search_btn = document.getElementById("search");
+				var send = document.getElementById("send");
+				var Lock_username = document.getElementById("Lock_username");
+				var Lock_id;
+				search_btn.addEventListener("tap", function() {
+					searchLock(Lock_username);
+				});
+				send.addEventListener("tap", function() {
+					send_request(myinfo.id, Lock_id);
+				})
+				
+				
+				// 获取扫一扫传来的Lock信息
+				window.addEventListener("getLockFromScan",function(event){
+					var lockInfo = event.detail.lockInfo;
+					Lock_id = lockInfo.id;
+					var faceImg = document.getElementById("faceImg");
+					faceImg.src = app.imgServerUrl + lockInfo.faceImage;
+					var nickname = document.getElementById("nickname");
+					nickname.innerText = lockInfo.nickname;
+					var username = document.getElementById("username");
+					username.innerText = "用户名:" + lockInfo.username;
+					document.getElementById("result_list").style.display = "block";
+					
+				});
+
+				//搜索Lock
+				function searchLock(Lock_username) {
+					if (!app.isNotNull(Lock_username.value)) {
+						Lock_username.focus();
+					} else {
+						mui.ajax(app.serverUrl + "user/getLockInfo", {
+							data: {
+								lock_username: Lock_username.value
+							},
+							dataType: 'json', //服务器返回json格式数据
+							type: 'post', //HTTP请求类型
+							timeout: 10000, //超时时间设置为10秒；
+							success: function(result) {
+								var data = result.data;
+								Lock_id = data.id;
+								var faceImg = document.getElementById("faceImg");
+								faceImg.src = app.imgServerUrl + data.faceImage;
+								var nickname = document.getElementById("nickname");
+								nickname.innerText = data.nickname;
+								var username = document.getElementById("username");
+								username.innerText = "用户名:" + data.username;
+								document.getElementById("result_list").style.display = "block";
+							},
+							error: function(xhr, type, errorThrown) {
+								if (textStatus == "timeout") {
+									app.showToast("连接超时", "error");
+								} else if (textStatus == "error") {
+									app.showToast("连接错误", "error");
+								}
+							}
+						});
+					}
+
+				}
+
+				// 发送Lock请求
+				function send_request(my_id, lock_id) {
+					var lockInfo = app.getContactList();
+					if(app.isNotNull(lockInfo)){
+						app.showToast("你已经被Locked了哦~", "error");
+					}
+					else if (my_id == lock_id) {
+						app.showToast("不可以Lock自己哦~", "error");
+					} else {
+						mui.get(app.serverUrl + "user/sentLockRequest", {
+								myuserId: my_id,
+								lockId: lock_id
+							},
+							function(result) {
+								if (result.status == 200) {
+									app.showToast("Lock请求发送成功~", "success");
+								} else app.showToast(result.msg, "error");
+							}, "json");
+					}
+				}
+				
+				
+			})
+		</script>
+	</body>
+
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<link href="../icon/iconfont.css" rel="stylesheet" />
+		<link href="../css/mui.picker.css" rel="stylesheet" />
+		<link href="../css/mui.dtpicker.css" rel="stylesheet" />
+		<style type="text/css">
+			body{
+				background-image: url(../images/indexBG.jpg);
+			}
+			#openPopover{
+				position: relative;
+				top: 50%;
+				transform: translateY(-50%);
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">Love Mail</h1>
+			<a href="#popover" id="openPopover" class="mui-pull-right" style="display: inline-block;vertical-align: middle;">
+				<img src="../images/extend.svg" style="width: 25px;height: 25px;"></img>
+			</a>
+			
+		</header>
+		<div class="mui-content index-body">
+			<ul class="mui-table-view" id="mailSnapList">
+				<!-- <li class="mui-table-view-cell mui-media" >
+					<div class="mui-media-body">
+							幸福
+							<p class="mui-ellipsis">能和心爱的人一起睡觉，是件幸福的事情；可是，打呼噜怎么办？</p>
+					</div>
+				</li> -->
+			</ul>
+		</div>
+		<div id="popover" class="mui-popover">
+		  <ul class="mui-table-view" style="font-size: 16px;">
+		    <li class="mui-table-view-cell" id="writeMail">
+				写日记
+			</li>
+		    <li class="mui-table-view-cell" id="searchMail">
+				查日记
+			</li>
+		  </ul>
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script src="../js/mui.picker.js"></script>
+		<script src="../js/mui.dtpicker.js"></script>
+		<script src="../js/date.format.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			var lockInfo;
+			var myInfo;
+			mui.plusReady(function(){
+				myInfo = app.getUserGlobalInfo();
+				lockInfo = app.getContactList();
+				// var thisWebView = plus.webview.currentWebview();
+				//每次显示love_mail时渲染本月的mail
+				
+				//定义日期选择组件
+				var datePicker = new mui.DtPicker({
+					type:'month',
+					lables:['年','月'],
+				    beginDate:new Date(lockInfo.lockDate)
+				});
+				//显示日期选择组件
+				document.getElementById("searchMail").addEventListener("tap",function(){
+					//console.log("ok");
+					datePicker.show(function(Item){
+						//按月查mail
+						var month = Item.y.value+'-'+Item.m.value.replace('0','');
+						getMailSnapList(month);
+					});
+					mui("#popover").popover("toggle");
+				});
+				//跳转到Mail
+				document.getElementById("writeMail").addEventListener("tap",function(){
+					var lastestMail = document.getElementById("mailSnapList").lastElementChild;
+					var date = new Date();
+					var dateStr = date.toLocaleDateString().split("/").join("-");
+					if(app.isNotNull(lastestMail)&&dateStr == lastestMail.id){
+						app.showToast("今天已经写过mail了哦~","error");
+					}
+					else{
+						mui.openWindow({
+							url:"mail.html",
+							id:"mail",
+							extras:{
+								dateStr: dateStr
+							}
+						});
+					}
+					mui("#popover").popover("toggle");
+				});
+				//通过快照跳转到mail页面
+				mui("#mailSnapList").on('tap','.mui-table-view-cell',function(){
+					var dateStr = this.id;
+					var mail_id = this.getAttribute("mail_id");
+					// console.log(mail_id);
+					mui.openWindow({
+						url:"mail.html",
+						id:"mail"+dateStr,
+						extras:{
+							dateStr: dateStr,
+							mail_id: mail_id
+						}
+					})
+				})
+				
+			});
+			
+			//添加新的mail快照
+			function addMailSnap(dateStr,mail_id){
+				console.log("ok");
+				var mailSnapUl = document.getElementById("mailSnapList");
+				var singleMailSnap = '<li class="mui-table-view-cell mui-media" id="'+dateStr+'" mail_id="'+mail_id+'">'+
+						'<div class="mui-media-body">'+
+								dateStr+
+						'</div>'+
+					'</li>';
+				mailSnapUl.insertAdjacentHTML("beforeend", singleMailSnap);	
+			}
+			//渲染本月mail快照
+			function loadMailSnapList(){
+				console.log("loadmail被调用")
+				var date = new Date();
+				var dateArr = date.toLocaleDateString().split("/");
+				var month = dateArr[0] + '-' + dateArr[1];
+				getMailSnapList(month);
+			}
+			
+			function getMailSnapList(month){
+				mui.get(app.serverUrl + "user/getMailByMonth", {
+						month: month,
+						userId: myInfo.id
+					},
+					function(result) {
+						var mailSnapHtml = "";
+						if (result.status == 200) {
+							for(var i=0;i<result.data.length;i++){
+								// console.log(result.data[i].dateStr);
+								// console.log(result.data[i]._id);
+								mailSnapHtml += '<li class="mui-table-view-cell mui-media" id="'+
+								result.data[i].dateStr+'" mail_id="'+result.data[i]._id+'">'+
+											'<div class="mui-media-body">'+
+													result.data[i].dateStr+
+											'</div>'+
+											'</li>';
+							}
+							var mailSnapUl = document.getElementById("mailSnapList");
+							mailSnapUl.innerHTML = mailSnapHtml;
+						}
+					}, 'json');
+			}
+		</script>
+	</body>
+
+</html>

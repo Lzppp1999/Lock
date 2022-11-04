@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport"
+			content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<link href="../icon/iconfont.css" rel="stylesheet" />
+		<style type="text/css">
+			body {
+				background-image: url(../images/indexBG.jpg);
+			}
+
+			#detailContainer {
+				/* position: fixed; */
+				top: 50%;
+				width: 100%;
+				margin-top: 50px;
+			}
+
+			#detail {
+				width: 95%;
+				margin-left: 2.5%;
+				height: 250px;
+				font-size: 16px;
+				border: 0px;
+			}
+
+			#detailContainer p {
+				color: #555555;
+				font-size: 18px;
+				padding: 8px 8px 0px 8px;
+				display: inline;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">My Lock</h1>
+		</header>
+		<div class="mui-content index-body" style="overflow: auto;height: 90%;">
+			<div id="mylockContainer" style="overflow: auto;height: 100%;">
+				<ul class="mui-table-view">
+					<li class="mui-table-view-cell mui-media" style="height: 5.625rem;line-height: 5.625rem;">
+						<img id="lockImage" class="mui-pull-left" src="../images/face-cat.jpg"
+							style="height: 3.75rem;width: 3.75rem;border-radius: 0.5rem;">
+						<label id="lockNickname"
+							style="float: left;font-size: 1.125rem;line-height: 1.875rem;margin-left: 0.3125rem;width: 80%;"></label>
+						<span id="lockUsername"
+							style="float: left;font-size: 14px;line-height: 1.875rem;margin: 0.3125rem 0.3125rem;"></span>
+						<img id="start_chat" src="../images/chat.svg" class="mui-pull-right"
+							style="width: 2.1875rem;margin-top:-0.9375rem;display: none; " />
+					</li>
+				</ul>
+				</br>
+				<ul id="add_ul" class="mui-table-view" style="display: none;">
+					<li id="search_lock" class="mui-table-view-cell mui-media">
+						<a href="javascript:;">
+							<img src="../images/add_lock.svg" class="mui-media-object mui-pull-left"
+								style="float: left;width: 1.875rem;" />
+							<div class="mui-media-body">
+								<span style="margin-left: 0.625rem;font-size: 1rem;">添加 Lock</span>
+							</div>
+						</a>
+					</li>
+					<li id="scan_lock" class="mui-table-view-cell mui-media">
+						<a href="javascript:;">
+							<img src="../images/saoyisao.svg" class="mui-media-object mui-pull-left"
+								style="float: left;width: 1.875rem;" />
+							<div class="mui-media-body">
+								<span style="margin-left: 0.625rem;font-size: 1rem;">扫一扫</span>
+							</div>
+						</a>
+					</li>
+				</ul>
+				<!-- 显示lock时间 -->
+				<ul class="mui-table-view" id="show_lock_time" style="display: none;">
+					<li class="mui-table-view-cell mui-media">
+						<a href="javascript:;">
+							<div class="mui-media-body" style="text-align: center;">
+								<span id="lockDays"></span>
+							</div>
+						</a>
+					</li>
+				</ul>
+				<br />
+				<ul class="mui-table-view" id="unLock" style="display: none;">
+					<li class="mui-table-view-cell mui-media">
+						<a href="javascript:;">
+							<div class="mui-media-body" style="text-align: center;">
+								<span id="unLock">取消 Lock</span>
+							</div>
+						</a>
+					</li>
+				</ul>
+
+				<div id="detailContainer" style="display: none;">
+					<p>❀ Detail ❀</p>
+					<span class="mui-pull-right" style="margin-right: 5px;" id="saveDetail">♥</span>
+					<textarea id="detail"></textarea>
+				</div>
+			</div>
+
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			var lock_id;
+			var my_id;
+			mui.plusReady(function() {
+				var currentWebview = plus.webview.currentWebview();
+				var lockImage = document.getElementById("lockImage");
+				var start_chat = document.getElementById("start_chat");
+				var lockNickname = document.getElementById("lockNickname");
+				var lockUsername = document.getElementById("lockUsername");
+				var show_lock_time = document.getElementById("show_lock_time");
+				var unLock = document.getElementById("unLock");
+				var lockDays = document.getElementById("lockDays");
+				var add_ul = document.getElementById("add_ul");
+				var detailContainer = document.getElementById("detailContainer");
+				currentWebview.addEventListener("show", function() {
+					show_lockInfo();
+				});
+				currentWebview.setStyle({
+					softinputMode: "adjustResize"
+				});
+				resizeWebview();
+				// 键盘弹出时，消息显示最后一条
+				window.addEventListener("resize", function() {
+					resizeWebview();
+				})
+				//显示Lock的信息
+				function show_lockInfo() {
+					var userInfo = app.getUserGlobalInfo();
+					var lockInfo = app.getContactList();
+					my_id = userInfo.id;
+					mui.get(app.serverUrl + "user/getMyLockInfo", {
+							my_id: userInfo.id,
+						},
+						function(result) {
+							if (result.status == 200) {
+								app.setContactList(result.data);
+							}
+						}, 'json');
+					lockInfo = app.getContactList();
+					if (app.isNotNull(lockInfo)) {
+						lock_id = lockInfo.id;
+						var sdate = new Date(lockInfo.lockDate).getTime();
+						var fdate = new Date().getTime();
+						var days = parseInt((fdate - sdate) / (1000 * 60 * 60 * 24));
+						lockImage.src = app.imgServerUrl + lockInfo.faceImage;
+						lockNickname.innerText = lockInfo.nickname;
+						lockUsername.innerText = "用户名:" + lockInfo.username;
+						show_lock_time.style.display = "block";
+						unLock.style.display = "block";
+						start_chat.style.display = "block";
+						detailContainer.style.display = "block";
+						lockDays.innerText = "♥ Lock的第 " + days + " 天 ♥";
+						add_ul.style.display = "none";
+					} else {
+						add_ul.style.display = "block";
+						lockNickname.innerText = "还没有Lock？添加Lock或扫一扫";
+					}
+				}
+
+				// 保存Detail
+				document.getElementById("saveDetail").addEventListener("tap", function() {
+					var detail = document.getElementById("detail");
+					app.saveDetail(detail.value);
+				});
+				// 渲染Detail
+				var detail = document.getElementById("detail");
+				detail.value = app.getDetail();
+				//解除Lock关系
+				var unLock = document.getElementById("unLock");
+				unLock.addEventListener("tap", function() {
+					var userInfo = app.getUserGlobalInfo();
+					var chatListView = plus.webview.getWebviewById("chat_list");
+					mui.confirm("你确定要解除Lock关系吗？解除Lock后聊天记录和日记会全部删除无法恢复", "提示", ["确定", "取消"], function(e) {
+						if (e.index == 0) {
+							mui.ajax(app.serverUrl + "user/deleteLock", {
+								data: {
+									my_id: userInfo.id
+								},
+								dataType: 'json', //服务器返回json格式数据
+								type: 'post', //HTTP请求类型
+								timeout: 10000, //超时时间设置为10秒；
+								success: function(result) {
+									if (result.status == 200) {
+										app.showToast(result.data, "success");
+										app.removeLock();
+										//发送解除lock消息给对方
+										chatListView.evalJS("CHAT.unLock('" + my_id + "','" +
+											lock_id + "')");
+										app.deleteUserChatHistory(my_id, lock_id);
+										lockImage.src = "../images/face-cat.jpg";
+										lockNickname.innerText = "还没有Lock？添加Lock或扫一扫";
+										lockUsername.innerText = "";
+										show_lock_time.style.display = "none";
+										unLock.style.display = "none";
+										start_chat.style.display = "none";
+										detailContainer.style.display = "none";
+										add_ul.style.display = "block";
+									} else {
+										app.showToast(result.msg, "error");
+
+									}
+								},
+								error: function(xhr, type, errorThrown) {
+									if (type == "timeout") {
+										app.showToast("连接超时", "error");
+									} else if (type == "error") {
+										app.showToast("连接错误", "error");
+									}
+								}
+							});
+						}
+					}, 'div');
+				})
+				//跳转到聊天页面
+				start_chat.addEventListener("tap", function() {
+					var lockInfo = app.getContactList();
+					mui.openWindow({
+						url: "chat.html",
+						id: "chat" + lockInfo.id,
+						extras: {
+							lockInfo: lockInfo
+						}
+					});
+				})
+				// 跳转搜索lock页面
+				var search_lock = document.getElementById("search_lock");
+				search_lock.addEventListener("tap", function() {
+					mui.openWindow("search_lock.html", "search_lock");
+				})
+				// 跳转扫面二维码页面
+				var scan_lock = document.getElementById("scan_lock");
+				scan_lock.addEventListener("tap", function() {
+					mui.openWindow("scan_lock.html", "scan_lock");
+				})
+
+				//设置所有文本框可以自动调节高度
+				document.getElementById("detail").addEventListener("tap", function(e) {
+					this.style.height = '250px';
+					this.style.height = e.target.scrollHeight + 'px';
+				});
+
+				function resizeWebview() {
+					//获取聊天列表容器对象
+					var mylockContainer = document.getElementById("mylockContainer");
+					//设置聊天记录进入页面的时候自动滚动到最后一条
+					mylockContainer.scrollTop = mylockContainer.scrollHeight;
+				}
+
+			})
+		</script>
+	</body>
+
+</html>

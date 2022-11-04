@@ -1,0 +1,454 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport"
+			content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<link href="../icon/iconfont.css" rel="stylesheet" />
+		<style type="text/css">
+			body {
+				background-image: url(../images/indexBG.jpg);
+			}
+
+			.mui-btn {
+				background-color: rgba(255, 88, 88, 0.8);
+				color: azure;
+				border: solid 1px azure;
+			}
+			
+			.red-point{
+				position: relative;
+			}
+			
+			.red-point::before{
+				content: " ";
+				border: 5px solid red;
+				border-radius: 5px;
+				position: absolute;
+				right: 0%;
+				z-index: 200;
+				margin-top: 0px;
+				margin-right: -10px;
+			}
+			
+			#planContainer{
+				position: fixed;
+			    top: 60%;	
+				width: 100%;
+			}
+			
+			#plan{
+				width: 95%;
+				margin-left: 2.5%;
+				height: 150px;
+				font-size: 16px;
+				border: 0px;
+			}
+			
+			#planContainer p{
+				color: #555555;
+				font-size: 18px;
+				padding: 8px 8px 0px 8px;
+				display: inline;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">Whisper</h1>
+		</header>
+		<div class="mui-content index-body">
+			<ul id="requestList" class="mui-table-view" style="display: none;">
+			</ul>
+			<ul id="snapList" class="mui-table-view">
+				
+					<!-- <li class="mui-table-view-cell mui-media">
+						<div class = "mui-slider-right mui-disabled">
+							<a class="mui-btn mui-btn-red">删除</a>
+						</div>
+							
+						<div class="mui-slider-handle mui-media-body">
+							<img class="mui-media-object mui-pull-left" src="../images/bird.png">
+							幸福
+							<p class="mui-ellipsis">能和心爱的人一起睡觉，是件幸福的事情；可是，打呼噜怎么办？</p>
+						</div>
+					
+					</li> -->
+			</ul>
+			<div id="planContainer">
+				<p>❀ Plan ❀</p>
+				<span class="mui-pull-right" id="savePlan" style="margin-right: 5px;">♥</span>
+				<textarea id="plan"></textarea>
+			</div>
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			var my_id;
+			var love_mailWebView;
+			// 设置全局的CHAT对象
+			window.CHAT = {
+				socket: null,
+				//interval:null,
+				init: function() {
+					//判断浏览器是否支持websocket
+					if (window.WebSocket) {
+						// 判断是否已经初始化过websocket
+						if (CHAT.socket != null && CHAT.socket != undefined && CHAT.socket.readyState == WebSocket
+							.OPEN) {
+							return false;
+						}
+						//创建websocket 对象
+						CHAT.socket = new WebSocket(app.nettyServerUrl);
+						CHAT.socket.onopen = CHAT.wsopen,
+						CHAT.socket.onclose = CHAT.wsclose,
+						CHAT.socket.onerror = CHAT.wserror,
+						CHAT.socket.onmessage = CHAT.wsmessage;
+					} else {
+						console.log("手机信息版本过低，请升级设备");
+					}
+				},
+				chat: function(msg) {
+				    var dataContent = JSON.parse(msg);
+					//将客户输入的消息进行发送
+					if (CHAT.socket != null && CHAT.socket != undefined && CHAT.socket.readyState == WebSocket.OPEN) {
+						try{
+							CHAT.socket.send(msg);
+							if(dataContent.action == app.CHAT){
+								var chatMsg = dataContent.chatMsg;
+								//保存聊天记录到本地缓存
+								app.saveUserChatHistory(chatMsg.senderId, chatMsg.receiverId, chatMsg.msg, 1, chatMsg.type);
+								//保存聊天快照到本地缓存
+								app.saveUserChatSnapshot(chatMsg.senderId, chatMsg.receiverId, chatMsg.msg, true, chatMsg.type);
+							}
+						}catch(err){
+							app.showToast("发送消息失败","error");
+						}
+						// console.log(msg);
+					} else {
+						//此时连接断开 需要重新连接
+						CHAT.init();
+						//重新发送消息
+						setTimeout("CHAT.reChat('" + msg + "')", 2000);
+					}
+					//渲染聊天快照
+					loadChatSnapList();
+				},
+				reChat: function(msg) { //中途连接断开的重连机制
+					console.log("消息重新发送");
+					var dataContent = JSON.parse(msg);
+					try{
+						CHAT.socket.send(msg);
+						if(dataContent.action == app.CHAT){
+							var chatMsg = dataContent.chatMsg;
+							//保存聊天记录到本地缓存
+							app.saveUserChatHistory(chatMsg.senderId, chatMsg.receiverId, chatMsg.msg, 1, chatMsg.type);
+							//保存聊天快照到本地缓存
+							app.saveUserChatSnapshot(chatMsg.senderId, chatMsg.receiverId, chatMsg.msg, true, chatMsg.type);
+						}
+					}catch(err){
+						if(dataContent.action == app.CHAT){
+							app.showToast("消息重发失败","error");
+						}else{
+							app.showToast("与服务器连接失败,请重启应用","error");
+						}
+					}
+				},
+				wsopen: function() {
+					console.log("链接建立成功");
+					// 构建连接消息
+					var chatMsg = new app.ChatMsg(my_id, null, null, null,0);
+					// 封装连接消息
+					//console.log(chatMsg);
+					var dataContent = new app.DataContent(app.CONNECT, chatMsg, null);
+					CHAT.chat(JSON.stringify(dataContent));
+					console.log("此处正常");
+					// 每次和netty建立连接后获取未读消息
+					// 渲染lovemail
+					console.log("渲染lovemail");
+					setTimeout("loadUnreadMsgList();love_mailWebView.evalJS('loadMailSnapList()')", 1000);
+					// 建立连接后每过160秒发送一个心跳包并获取未读消息
+					console.log("发送心跳消息");
+					setInterval("CHAT.keepAlive()",40*1000);
+				},
+				wsclose: function() {
+					console.log("链接关闭");
+					//clearInterval(CHAT.interval);
+				},
+				wserror: function() {
+					console.log("发生异常");
+				},
+				wsmessage: function(e) {
+					//console.log("接受消息：" + e.data);
+					//console.log("lock_id："+lock_id);
+					var dataContentMsg = JSON.parse(e.data);
+					if(dataContentMsg.action == app.uploadMail){
+						console.log("渲染新的mail消息");
+						love_mailWebView.evalJS("loadMailSnapList()");
+						return ;
+					}
+					if(dataContentMsg.action == app.UNLOCK){
+						app.removeLock();
+						return ;
+					}
+					playReceiveMsgSound();
+					var chatMsg = dataContentMsg.chatMsg;
+					//console.log(chatMsg.type);
+					var senderId = chatMsg.senderId;
+					var chatWebview = plus.webview.getWebviewById("chat" + senderId);
+					var isRead = true; //默认聊天快照已读
+					//如果聊天页面窗口存在
+					if (chatWebview != null) {
+						if(chatMsg.type == 0){
+							chatWebview.evalJS("receiveMsg('" + chatMsg.msg + "')");
+						}
+						else if(chatMsg.type == 1){
+							//console.log(chatMsg.msg.split(",")[1]);
+							chatWebview.evalJS("receiveVoice('" + chatMsg.msg + "')");
+						}
+						// 将页面滚动条重新显示
+						chatWebview.evalJS("resizeWebview()");
+					} else {
+						isRead = false; //聊天窗口不存在，聊天快照未读
+					}
+					//接收到消息后，签收单条消息
+					var dataContentSign = new app.DataContent(app.SIGNED, null, chatMsg.msgId);
+					CHAT.chat(JSON.stringify(dataContentSign));
+
+					//保存聊天记录到本地缓存
+					app.saveUserChatHistory(my_id, senderId, chatMsg.msg, 2, chatMsg.type);
+					//保存聊天快照到本地缓存
+					app.saveUserChatSnapshot(my_id, senderId, chatMsg.msg, isRead, chatMsg.type);
+					//渲染聊天快照
+					loadChatSnapList();
+				},
+				signMsgList: function(unsignMsgIds){
+					var dataContent = new app.DataContent(app.SIGNED,null,unsignMsgIds);
+					CHAT.chat(JSON.stringify(dataContent));
+				},
+				keepAlive: function(){
+					var heartBeat = new app.DataContent(app.KEEPALIVE,null,null);
+					CHAT.chat(JSON.stringify(heartBeat));
+					// loadUnreadMsgList();
+				},
+				unLock:function(my_id,lock_id){
+					var msg = new app.ChatMsg(my_id,lock_id,null,null,0);
+					var unlock = new app.DataContent(app.UNLOCK,msg,null);
+					CHAT.chat(JSON.stringify(unlock));
+				},
+				uploadMail:function(my_id,lock_id){
+					var msg = new app.ChatMsg(my_id,lock_id,null,null,0);
+					var uploadMail = new app.DataContent(app.uploadMail,msg,null);
+					CHAT.chat(JSON.stringify(uploadMail));
+				}
+			};
+			mui.plusReady(function() {
+				var userInfo = app.getUserGlobalInfo();
+				my_id = userInfo.id;
+				var currentWebview = plus.webview.currentWebview();
+				love_mailWebView = plus.webview.getWebviewById("love_mail");
+				CHAT.init();
+				currentWebview.addEventListener('show', function() {
+					var lockInfo = app.getContactList();
+					if (!app.isNotNull(lockInfo)) {
+						mui.get(app.serverUrl + "user/getInfoFromRequest", {
+								my_id: userInfo.id
+							},
+							function(result) {
+								if (result.status == 200) {
+									requestInfoList = result.data;
+									var html_sum = requestInfoList_show(requestInfoList);
+									document.getElementById("requestList").innerHTML = html_sum;
+								}
+							}, 'json');
+					}
+				});
+				
+				// 保存Plan
+				document.getElementById("savePlan").addEventListener("tap",function(){
+					var plan = document.getElementById("plan");
+					app.savePlan(plan.value);
+				});
+				// 渲染Plan
+				var plan = document.getElementById("plan");
+				plan.value = app.getPlan();
+
+				mui("#requestList").on("tap", ".ack", function() {
+					var userInfo = app.getUserGlobalInfo();
+					var my_id = userInfo.id;
+					var lock_id = this.parentElement.parentElement.lastElementChild.innerText;
+					console.log(lock_id);
+					mui.ajax(app.serverUrl + "user/confirmLock", {
+						data: {
+							my_id: my_id,
+							lock_id: lock_id
+						},
+						dataType: 'json', //服务器返回json格式数据
+						type: 'post', //HTTP请求类型
+						timeout: 10000, //超时时间设置为10秒；
+						success: function(result) {
+							if (result.status == 200) {
+								app.showToast("恭喜你Lock成功！", "success");
+								app.setContactList(result.data);
+								document.getElementById("requestList").style.display = "none";
+							} else app.showToast(result.data.msg, "error");
+						},
+						error: function(xhr, type, errorThrown) {
+							if (type == "timeout") {
+								app.showToast("连接超时", "error");
+							} else if (type == "error") {
+								app.showToast("连接错误", "error");
+							}
+						}
+					});
+				})
+
+				//动态加载请求信息列表
+				function requestInfoList_show(requestInfoList) {
+					var html_sum = '';
+					if (requestInfoList.length > 0) {
+						document.getElementById("requestList").style.display = "block";
+						for (var i = 0; i < requestInfoList.length; i++) {
+							var html = '<li class="mui-table-view-cell mui-media">' +
+								'<a href="javascript:;">' +
+								'<img class="mui-media-object mui-pull-left" style="width: 2.625rem;border-radius: 0.3125rem;" src="' +
+								app.imgServerUrl + requestInfoList[i].faceImage + '">' +
+								'<span class="mui-pull-right" style="margin-top: 0.3125rem;right: 5px;">' +
+								'<button class="ack mui-btn">同意</button>' +
+								'<button class="refuse mui-btn" style="margin-left:8px;">拒绝</button>' +
+								'</span>' +
+								'<label style="font-size: 1rem;">' + requestInfoList[i].nickname + '</label>' +
+								'<p class="mui-ellipsis" style="margin-top: 0.3125rem;">请求Lock ♥</p>' +
+								'<p style="display: none;">' + requestInfoList[i].id + '</p>' +
+								'</a>' +
+								'</li>'
+							html_sum += html;
+						}
+					}
+					return html_sum;
+				}
+				
+				//点击聊天快照跳转到聊天页面
+				mui("#snapList").on("tap",".chat-with-lock",function(){
+					var lockInfo = app.getContactList();
+					mui.openWindow({url: "chat.html",
+									id: "chat"+lockInfo.id,
+									extras:{
+										lockInfo:lockInfo
+										},
+									});
+					app.readUserChatSnapShot(my_id,lockInfo.id);
+					loadChatSnapList();
+				});
+				
+				//删除聊天快照和聊天记录
+				mui("#snapList").on("tap",".deleteChatSnap",function(){
+					var me = this;
+					mui.confirm("删除后，将清空该聊天的消息记录",null,['取消','确定'],function(e){
+						if(e.index == 1){
+							var lock_id = me.getAttribute("lock_id");
+							console.log(lock_id);
+							//删除聊天快照和聊天记录
+							app.deleteUserChatSnapshot(my_id,lock_id);
+							app.deleteUserChatHistory(my_id,lock_id);
+							//删除前端快照元素
+							var li = me.parentNode.parentNode;
+							var snapList = document.getElementById("snapList");
+							snapList.removeChild(li);
+						}
+					},'div')
+				})
+				
+				//设置所有文本框可以自动调节高度
+				document.getElementById("plan").addEventListener("tap",function(e){
+					this.style.height = '150px';
+					this.style.height = e.target.scrollHeight + 'px';
+				});
+				
+			})
+			
+			//渲染聊天快照
+			function loadChatSnapList(){
+				var chatSnapList = app.getUserChatSnapshot(my_id);
+				var lockInfo = app.getContactList();
+				var snapList = document.getElementById("snapList");
+				var snapHtml = "";
+				var msgBefore = "";
+				var msgAfter = "";
+				if(app.isNotNull(chatSnapList)){
+					var chatSnap = chatSnapList[0]
+					if(!chatSnap.isRead){
+						msgBefore = '<span class="red-point">';
+						msgAfter = '</span>';
+					}
+					snapHtml = '<li class="chat-with-lock mui-table-view-cell mui-media">'+
+									'<div class = "mui-slider-right mui-disabled">'+
+										'<a class="mui-btn deleteChatSnap" lock_id="'+lockInfo.id+'">删除</a>'+
+									'</div>'+
+									'<div class="mui-slider-handle mui-media-body" style="background-color: rgba(255,255,255,0)">'+
+										'<img class="mui-media-object mui-pull-left" style="border-radius: 3px ;" src="'+app.imgServerUrl+lockInfo.faceImage+'">'+
+										msgBefore+lockInfo.nickname+msgAfter+
+										'<p class="mui-ellipsis">'+chatSnap.msg+'</p>'+
+									'</div>'+
+								'</li>';
+					snapList.innerHTML = snapHtml;
+				}
+			}
+			
+			//获取未读消息
+			function loadUnreadMsgList(){
+				mui.ajax(app.serverUrl+"user/getUnreadMsgList?my_id="+my_id,{
+					dataType:'json',
+					type:'get',
+					timeout:10000,
+					success: function(result){
+						if(result.status == 200){
+							var unReadMsgList = result.data;
+							var msgIds = "";
+							for(var i = 0;i<unReadMsgList.length;i++){
+								var singleMsg = unReadMsgList[i];
+								app.saveUserChatHistory(my_id,singleMsg.sendUserId,singleMsg.msg,2,singleMsg.type);
+								if(i == unReadMsgList.length-1){
+									app.saveUserChatSnapshot(my_id,singleMsg.sendUserId,singleMsg.msg,false,singleMsg.type);
+								}
+								msgIds += singleMsg.id;
+								if(i != unReadMsgList.length-1){
+									msgIds += ",";
+								}
+							}
+							console.log(my_id+"接收消息");
+							// console.log(msgIds);
+							//批量签收消息
+							CHAT.signMsgList(msgIds);
+							//刷新聊天快照
+							loadChatSnapList();
+						}
+						else{
+							app.showToast("获取未读信息失败", "error");
+						}	
+					},
+					error:function(XMLHttpRequest, textStatus, errorThrown) {
+									mui(".mui-btn").button("reset");
+									if (textStatus == "timeout") {
+										app.showToast("连接超时", "error");
+									} else if (textStatus == "error") {
+										app.showToast("连接错误", "error");
+									}
+					}
+			    });
+			}
+			
+			function playReceiveMsgSound(){
+				var receivePlayer = plus.audio.createPlayer("../mp3/receive.wav");
+				receivePlayer.play();
+			}
+		</script>
+	</body>
+
+</html>

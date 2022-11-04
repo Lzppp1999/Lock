@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport"
+			content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<link href="../css/chat.css" rel="stylesheet" />
+		<link href="../icon/iconfont.css" rel="stylesheet" />
+		<style>
+			body {
+				background-image: url(../images/chatBG.png);
+				height: 100%;
+				margin: 0px;
+				padding: 0px;
+				overflow: hidden;
+				-webkit-touch-callout: none;
+				-webkit-user-select: none;
+			}
+
+			#msg {
+				
+			}
+
+			.audio-right {
+				width: 180px;
+				height: 42px;
+			}
+
+			.audio-left {
+				width: 180px;
+				height: 42px;
+			}
+
+			.audio-wrapper-right {
+				display: inline-block;
+				float: right;
+				margin: 8px 45px 0px 0px;
+			}
+
+			.audio-wrapper-left {
+				display: inline-block;
+				float: left;
+				margin: 8px 0px 0px 45px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">标题</h1>
+		</header>
+		<div id="msg-outter" class="mui-content">
+			<div id='msg'>
+
+				<!-- <div class="friend_lists">
+					<div class="header_img">
+						<img src="../images/face-cat.jpg" width="38px" height="38px" style="border-radius:0.125rem ;"/>
+					</div>
+					<div class="msg-wrapper right">
+						<p class="msg-left-white">
+							十大监督卡监督卡的打卡机大坏蛋大量进口降幅辣椒粉可是大家淡出江湖的聚餐呢圣诞卡看看能否卡的咖啡拉花看到可能是
+						</p>
+					</div>
+				</div> -->
+
+			</div>
+		</div>
+		<footer>
+			<div class="footer-center">
+				<img id="switch-msgtype" msg_type="text" src="../images/yuyin.svg" class="mui-pull-left"
+					style="width: 38px;height: 38px;margin-right:5px ;" />
+				<textarea id='msg-text' type="text" class='input-text' style="width: 80%;"></textarea>
+				<button id='msg-voice' style="width: 80%;height: 40px;display: none;">按住发送语音</button>
+			</div>
+			<label for="" class="footer-right">
+				<button type="button" class="mui-btn" style="border: solid 1px palevioletred;" id="send">发送</button>
+			</label>
+		</footer>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init();
+			var lock_nickname;
+			var lock_face;
+			var lock_id;
+			var my_info;
+			var audioRecorder;
+			var thisWindow;
+			var chatListWebview;
+			var currentLength;
+			var chatHistoryList;
+
+			mui.plusReady(function() {
+				// 获取当前窗口
+				thisWindow = plus.webview.currentWebview();
+				// 获取lock窗口
+				chatListWebview = plus.webview.getWebviewById("chat_list");
+				thisWindow.setStyle({
+					softinputMode: "adjustResize"
+				});
+				// 获取当前设备录音对象
+				audioRecorder = plus.audio.getRecorder();
+				// 获取lock对象
+				var lockInfo = thisWindow.lockInfo;
+				lock_nickname = lockInfo.nickname;
+				lock_face = app.imgServerUrl + lockInfo.faceImage;
+				lock_id = lockInfo.id;
+				// 获取个人信息
+				my_info = app.getUserGlobalInfo();
+				// 设置标题
+				document.getElementsByClassName("mui-title")[0].innerHTML = lockInfo.nickname;
+				chatHistoryList = app.getUserChatHistory(my_info.id, lock_id);
+				currentLength = chatHistoryList.length - 1;
+				// console.log(chatHistoryList[21].flag);
+				initChatHistory(chatHistoryList);
+				//滚动渲染聊天页面
+				document.getElementById("msg").addEventListener("scroll",function(){
+					// console.log(this.offsetHeight);
+					if(this.scrollTop==0){
+						initChatHistory(chatHistoryList);
+					}
+				});
+				resizeWebview();
+				// 键盘弹出时，消息显示最后一条
+				window.addEventListener("resize", function() {
+					resizeWebview();
+				})
+				//获取聊天发送内容文本框对象
+				var msg_text = document.getElementById("msg-text");
+				//获取语音按钮
+				var msg_voice = document.getElementById("msg-voice");
+				//获取发送消息按钮对象
+				var send = document.getElementById("send");
+				//获取语音键盘切换标志
+				var switch_msgtype = document.getElementById("switch-msgtype");
+				//绑定切换事件
+				switch_msgtype.addEventListener("tap", function() {
+					var msgtype = this.getAttribute("msg_type");
+					if (msgtype == "text") {
+						this.src = "../images/keyboard.svg";
+						this.setAttribute("msg_type", "voice");
+						document.getElementById("msg-text").style.display = "none";
+						document.getElementById("msg-voice").style.display = "block";
+					} else if (msgtype == "voice") {
+						this.src = "../images/yuyin.svg";
+						this.setAttribute("msg_type", "text");
+						document.getElementById("msg-voice").style.display = "none";
+						document.getElementById("msg-text").style.display = "block";
+					}
+				});
+				msg_voice.addEventListener("touchstart", function() {
+					plus.nativeUI.showWaiting("正在录音");
+					startRecord();
+				});
+				msg_voice.addEventListener("touchend", function() {
+					stopRecord();
+					plus.nativeUI.closeWaiting();
+				});
+				//监听用户输入，通过有无输入内容控制按钮的颜色
+				msg_text.addEventListener("input", function() {
+					//获取聊天发送内容
+					var msg_text_content = msg_text.value;
+					if (msg_text_content.length > 0) {
+						send.setAttribute("class", "mui-btn-green");
+					} else {
+						send.setAttribute("class", "mui-btn-gray");
+					}
+				});
+				send.addEventListener("tap", function() {
+					/**
+					 * 先检测网络连接
+					 */
+					var currentNetworkStatus = plus.networkinfo.getCurrentType();
+					if (currentNetworkStatus == 0 || currentNetworkStatus == 1) {
+						app.showToast("当前网络不可用...", "error");
+						return;
+					}
+					var msg_text = document.getElementById("msg-text");
+					if (msg_text.value.length == 0) {
+						return;
+					}
+					sendMsg(app.imgServerUrl + my_info.faceImage, msg_text.value);
+					var chatMsg = new app.ChatMsg(my_info.id, lock_id, msg_text.value, null, 0);
+					var dataContent = new app.DataContent(app.CHAT, chatMsg, null);
+					chatListWebview.evalJS("CHAT.chat('" + JSON.stringify(dataContent) + "')");
+					// 清空聊天输入
+					msg_text.value = "";
+					send.setAttribute("class", "mui-btn-gray");
+					// receiveMsg("收到");
+				});
+			})
+
+			function resizeWebview() {
+				//获取聊天列表容器对象
+				var areaMsgList = document.getElementById("msg");
+				//设置聊天记录进入页面的时候自动滚动到最后一条
+				areaMsgList.scrollTop = areaMsgList.scrollHeight;
+			}
+			//发送消息
+			function sendMsg(myFace, msg) {
+				var msgHtml = '<div class="me_lists">' +
+					'<div class="header_img">' +
+					'<img src="' + myFace + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+					'</div>' +
+					'<div class="msg-wrapper left">' +
+					'<p class="msg-right-green">' + msg + '</p>' +
+					'</div>' +
+					'</div>';
+				var msgContainer = document.getElementById("msg");
+				msgContainer.insertAdjacentHTML("beforeend", msgHtml);
+				playSendMsgSound();
+			}
+
+			//接受消息
+			function receiveMsg(msg) {
+				var msgHtml = '<div class="friend_lists">' +
+					'<div class="header_img">' +
+					'<img src="' + lock_face + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+					'</div>' +
+					'<div class="msg-wrapper right">' +
+					'<p class="msg-left-white">' + msg + '</p>' +
+					'</div>' +
+					'</div>';
+				var msgContainer = document.getElementById("msg");
+				msgContainer.insertAdjacentHTML("beforeend", msgHtml);
+				playReceiveMsgSound();
+			}
+			//发送语音消息
+			function sendVoice(myFace, msg) {
+				// var audioBlob = app.dataURItoBlob(msg);
+				// var blobUrl = window.URL.createObjectURL(audioBlob);
+				var msgHtml = '<div class="me_lists">' +
+					'<div class="header_img">' +
+					'<img src="' + myFace + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+					'</div>' +
+					'<span class="audio-wrapper-right">' +
+					'<audio class="audio-right"  controls="controls" src="' + msg + '"></audio>' +
+					'</span>' +
+					'</div>';
+				var msgContainer = document.getElementById("msg");
+				msgContainer.insertAdjacentHTML("beforeend", msgHtml);
+				//console.log(document.getElementsByTagName("audio")[0].src);
+				playSendMsgSound();
+			}
+			//接收语音消息
+			function receiveVoice(msg) {
+				// var audioBlob = app.dataURItoBlob(msg);
+				// var blobUrl = window.URL.createObjectURL(audioBlob);
+				// console.log(blobUrl);
+				var msgHtml = '<div class="friend_lists">' +
+					'<div class="header_img">' +
+					'<img src="' + lock_face + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+					'</div>' +
+					'<span class="audio-wrapper-right">' +
+					'<audio class="audio-left" controls="controls" src="' + msg + '"></audio>' +
+					'</span>' +
+					'</div>';
+				var msgContainer = document.getElementById("msg");
+				msgContainer.insertAdjacentHTML("beforeend", msgHtml);
+				playReceiveMsgSound();
+			}
+
+			function playSendMsgSound() {
+				var sendPlayer = plus.audio.createPlayer("../mp3/send.wav");
+				sendPlayer.play();
+			}
+
+			function playReceiveMsgSound() {
+				var receivePlayer = plus.audio.createPlayer("../mp3/receive.wav");
+				receivePlayer.play();
+			}
+			// 初始化聊天记录
+			function initChatHistory(chatHistoryList) {
+				var msg_list = document.getElementById("msg");
+				// var chatHistoryList = app.getUserChatHistory();
+				// console.log(chatHistoryList[21].flag);
+				// app.deleteUserChatHistory();
+				//定义聊天记录全局遍历
+				var chatHtml = "";
+				//渲染聊天记录到聊天页面
+				for (var i = currentLength; i >= 0 && i > currentLength - 20; i--) {
+					console.log(i);
+					var singleMsg = chatHistoryList[i];
+					// console.log(singleMsg.msg);
+					if (singleMsg.flag == 1) {
+						if (singleMsg.type == 0) {
+							chatHtml = '<div class="me_lists">' +
+								'<div class="header_img">' +
+								'<img src="' + app.imgServerUrl + my_info.faceImage +
+								'" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+								'</div>' +
+								'<div class="msg-wrapper left">' +
+								'<p class="msg-right-green">' + singleMsg.msg + '</p>' +
+								'</div>' +
+								'</div>' + chatHtml;
+						} else if (singleMsg.type == 1) {
+							chatHtml = '<div class="me_lists">' +
+								'<div class="header_img">' +
+								'<img src="' + app.imgServerUrl + my_info.faceImage +
+								'" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+								'</div>' +
+								'<span class="audio-wrapper-right">' +
+								'<audio class="audio-right"  controls="controls" src="' + singleMsg.msg + '"></audio>' +
+								'</span>' +
+								'</div>' + chatHtml;
+							//console.log(singleMsg.msg);
+						}
+					} else {
+						if (singleMsg.type == 0) {
+							chatHtml = '<div class="friend_lists">' +
+								'<div class="header_img">' +
+								'<img src="' + lock_face + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+								'</div>' +
+								'<div class="msg-wrapper right">' +
+								'<p class="msg-left-white">' + singleMsg.msg + '</p>' +
+								'</div>' +
+								'</div>' + chatHtml;
+						} else if (singleMsg.type == 1) {
+							chatHtml = '<div class="friend_lists">' +
+								'<div class="header_img">' +
+								'<img src="' + lock_face + '" width="38px" height="38px" style="border-radius:0.125rem ;"/>' +
+								'</div>' +
+								'<span class="audio-wrapper-left">' +
+								'<audio class="audio-left"  controls="controls" src="' + singleMsg.msg + '"></audio>' +
+								'</span>' +
+								'</div>' + chatHtml;
+						}
+					}
+				}
+				msg_list.insertAdjacentHTML("afterbegin", chatHtml);
+				currentLength -= 20;
+				if(currentLength<0){
+					currentLength = -1;
+				}
+			}
+
+			//开始录音
+			function startRecord() {
+				if (audioRecorder == null) {
+					app.showToast("Device not ready!", "error");
+					return;
+				}
+				audioRecorder.record({
+					filename: "_doc/audio/",
+					format: "mp3"
+				}, function(recordfile) {
+					var reader = new plus.io.FileReader();
+					plus.io.resolveLocalFileSystemURL(recordfile,
+						function(entry) {
+							entry.file(
+								function(file) {
+									reader.readAsDataURL(file);
+									reader.onloadend = function(e) {
+										//console.log(app.imgServerUrl+my_info.faceImage);
+										sendVoice(app.imgServerUrl + my_info.faceImage, e.target.result);
+										var chatMsg = new app.ChatMsg(my_info.id, lock_id, e.target.result,
+											null, 1);
+										var dataContent = new app.DataContent(app.CHAT, chatMsg, null);
+										chatListWebview.evalJS("CHAT.chat('" + JSON.stringify(dataContent) +
+											"')");
+										//receiveVoice(e.target.result);
+									}
+								},
+								function(e) {
+									console.log(e.message)
+								}
+							);
+						},
+						function(e) {
+							console.log(e.message)
+						}
+					);
+				}, function(e) {
+					app.showToast("录音失败", "error");
+				});
+			}
+			//停止录音
+			function stopRecord() {
+				//playSendMsgSound();
+				// console.log("停止录音");
+				audioRecorder.stop();
+			}
+		</script>
+	</body>
+
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<style type="text/css">
+			#scan{
+				width: 100%;
+				height: 85%;
+				margin-top: 1.25rem;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">扫一扫</h1>
+		</header>
+		<div id='scan'></div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init({
+				preloadPages:[
+					{url:"search_lock.html",id:"search_lock"}
+				]
+			})
+			var qr_scan_tool;
+			mui.plusReady(function () {
+			   var styles = {background:"#000000",frameColor:'#ffffff',scanbarColor:'#ffffff'};
+			   qr_scan_tool = new plus.barcode.Barcode('scan',null,styles);
+			   qr_scan_tool.start();
+			   qr_scan_tool.onmarked = onmarked;
+			   
+			})
+			function onmarked(type,msg){
+				if(type == 0){
+					if(msg!=null){
+						mui.get(app.serverUrl+'user/getLockInfo',
+						{lock_username:msg},
+						function(result){
+							var lockInfo = result.data;
+							if(result.status == 200){
+								var searchLock = plus.webview.getWebviewById('search_lock');
+								mui.fire(searchLock,"getLockFromScan",{lockInfo:lockInfo});
+								mui.openWindow({
+									id:"search_lock"
+								});
+							}
+							else app.showToast(result.msg,'error');
+						},'json');
+					}
+				}
+			}
+			
+		</script>
+	</body>
+
+</html>

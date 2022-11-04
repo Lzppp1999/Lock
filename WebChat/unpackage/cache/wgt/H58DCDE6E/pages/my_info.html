@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<style type="text/css">
+			body{
+				background-image: url(../images/indexBG.jpg);
+			}
+		    .mui-content{
+				padding-top: 0rem ;
+				margin-top: 0rem;
+			}
+			.mui-table-view-cell span,a {
+				font-size: 1rem;
+				color: #666666;
+			}
+
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">Me</h1>
+		</header>
+		<div class="mui-content index-body">
+			<ul class="mui-table-view">
+				<li class="mui-table-view-cell mui-media">
+					<a href="javascript:;">
+						<span class="mui-icon mui-icon-arrowright mui-pull-right" id="face_edit"></span>
+						<img id="faceImage" class="mui-media-object mui-pull-right"  src="../images/bird.png" style="line-height: 2.625rem;border-radius: 0.3125rem;">
+						<div class="mui-media-body">
+							头像
+						</div>
+					</a>
+				</li>
+				<li class="mui-table-view-cell mui-media">
+					<a  href="javascript:;">
+						<span class="mui-icon mui-icon-arrowright mui-pull-right" id="nickname_edit"></span>
+						<div class="mui-media-body">
+							昵称
+							<span id="nickname_span" class="mui-pull-right"></span>
+						</div>
+					</a>
+				</li>
+				<li class="mui-table-view-cell mui-media">
+					<a href="javascript:;">
+						<span class="mui-icon mui-icon-arrowright mui-pull-right" id="username_edit"></span>
+						<div class="mui-media-body">
+						    账号
+							<span id="username_span" class="mui-pull-right"></span>
+						</div>
+					</a>
+				</li>
+				<li class="mui-table-view-cell mui-media">
+					<a href="javascript:;">
+						<span class="mui-icon mui-icon-arrowright mui-pull-right" ></span>
+						<img id="show_qrcode" class="mui-media-object mui-pull-right" src="../images/qrcode.png" style="max-width: 2.375rem;max-height: 2.375rem;"/>
+						<div class="mui-media-body">
+						    二维码
+						</div>
+					</a>
+				</li>
+			</ul>
+			<br />
+			<ul class="mui-table-view">
+				<li id="logout" class="mui-table-view-cell mui-media">
+					<a href="javascript:;">
+						<div class="mui-media-body" style="text-align: center;">
+							退出登录
+						</div>
+					</a>
+				</li>
+			</ul>
+			
+		</div>
+		<div id="face_edit_sheet" class="mui-popover mui-popover-bottom mui-popover-action ">
+			<!-- 可选择菜单 -->
+			<ul class="mui-table-view">
+			  <li class="mui-table-view-cell">
+				<a id="local" style="color: #666666;" href="#">本地相册</a>
+			  </li>
+			</ul>
+			<!-- 取消菜单 -->
+			<ul class="mui-table-view">
+			  <li class="mui-table-view-cell">
+				<a href="#face_edit_sheet" style="color: #666666;">取消</a>
+			  </li>
+			</ul>
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			var chatListWebview;
+			mui.plusReady(function () {
+				//获取当前页面窗口
+				var currentWebview = plus.webview.currentWebview();
+				chatListWebview = plus.webview.getWebviewById("chat_list");
+				currentWebview.addEventListener("show",function(){
+					//刷新当前页面用户信息
+					refreshUserInfo();
+				}) ;
+				mui(".mui-table-view").on("tap","#logout",function(){
+					chatListWebview.evalJS("CHAT.socket.close()");
+					mui.openWindow({
+						url:"login.html",
+						id:"relogin"
+					})
+					var faceImage = document.getElementById("faceImage");
+					faceImage.src = "../images/bird.png";
+					app.userLogout();
+					
+				})
+				document.getElementById("faceImage").addEventListener("click",function(){
+					mui.openWindow({url:"face.html",id:"face"});
+				})
+				document.getElementById("face_edit").addEventListener("click",function(){
+					mui("#face_edit_sheet").popover("toggle");
+				})
+				document.getElementById("local").addEventListener("tap",function(){
+					mui.openWindow({url:"../plugin/v3.1.6/myface-uploader.html",id:"myface-uploader"});
+					mui("#face_edit_sheet").popover("toggle");
+				})
+				document.getElementById("nickname_edit").addEventListener("tap",function(){
+					mui.prompt('','','修改昵称',['确定','取消'],function(e){
+						if(!app.isNotNull(e.value)&&e.index==0){
+							app.showToast("昵称不能为空","error");
+							return false;
+						}
+						else if(e.value.length>10&&e.index==0){
+							app.showToast("昵称不能超过10位","error");
+							return false;
+						}
+						else if(e.index==0){modify_nickname(e.value);}
+					},'div');
+				})
+				document.getElementById("username_edit").addEventListener("tap",function(){
+					mui.openWindow({url:"Recode.html",id:"Recode"});
+				})
+				document.getElementById("show_qrcode").addEventListener("tap",function(){
+					mui.openWindow({url:"my_qrcode.html",id:"my_qrcode"});
+				})
+				
+			})
+			function modify_nickname(new_nickname){
+				var my_id = app.getUserGlobalInfo().id;
+				mui.ajax(app.serverUrl+"user/modifyNickname",{
+					data:{
+						nickname:new_nickname,
+						my_id:my_id
+					},
+					type:'post',
+					timeout:10000,
+					success: function(result){
+						app.setUserGlobalInfo(result.data);
+						refreshUserInfo();
+					},
+					error: function(XMLHttpRequest, textStatus, errorThrown) {
+						mui(".mui-btn").button("reset");
+						if (textStatus == "timeout") {
+							app.showToast("连接超时", "error");
+						} else if (textStatus == "error") {
+							app.showToast("连接错误", "error");
+						}
+					}
+				})
+			}
+			
+			//刷新函数
+			function refreshUserInfo(){
+				var userinfo_json = app.getUserGlobalInfo();
+				console.log(userinfo_json.id);
+				var username = userinfo_json.username;
+			    var nickname = userinfo_json.nickname;
+				var faceImg = userinfo_json.faceImage;
+				var username_span = document.getElementById("username_span");
+				var nickname_span = document.getElementById("nickname_span");
+			    username_span.innerText = username;
+				nickname_span.innerHTML = nickname;
+				if(app.isNotNull(faceImg)){
+					var faceImage = document.getElementById("faceImage");
+					faceImage.src = app.imgServerUrl+faceImg;	
+				}	
+			}
+			
+		</script>
+	</body>
+
+</html>

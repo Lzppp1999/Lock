@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<style>
+			.mui-content{
+				width: 90%;
+				height: 70%;
+				background-color: azure;
+				margin: 5rem auto;
+				border-radius: 0.5rem;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<a class="mui-pull-right" style="line-height: 2.8125rem;font-size: 1rem;">
+				<img id="download_qrcode" src="../images/download.png" width="25px"/>
+			</a>
+			<h1 class="mui-title">我的二维码</h1>
+		</header>
+		<div class="mui-content">
+			<div style="height: 3.125rem;">
+				<img id="myface" src="../images/bird.png" width="44px" style="float: left;margin: 0.5rem;line-height: 2.75rem;"/>
+				<label id="nickname" style="float: left;font-size: 16px;padding-top:0.5rem ;">拉拉</label>
+			</div>
+			<div>
+				<img id="myqrcode" src="../images/bird.png" width="90%"  style="margin: 0px 5%;"/>
+			</div>
+			<div style="margin: 20px;">
+				<p style="text-align: center;">扫一扫，添加Lock！</p>
+			</div>
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			mui.plusReady(function () {
+			    var userinfo_json = app.getUserGlobalInfo();
+				var nickname = userinfo_json.nickname;
+				var faceImage = userinfo_json.faceImage;
+				var qrcode = userinfo_json.qrcode;
+				//动态添加用户信息
+				var nickname_show = document.getElementById("nickname");
+				if(app.isNotNull(nickname)){
+					nickname_show.innerText = nickname;
+				}
+				var myface_show = document.getElementById("myface");
+				if(app.isNotNull(faceImage)){
+					myface_show.src = app.imgServerUrl+faceImage;
+					console.log(app.imgServerUrl+faceImage);
+				}
+				var myqrcode_show = document.getElementById("myqrcode");
+				if(app.isNotNull(qrcode)){
+					myqrcode_show.src = app.imgServerUrl+qrcode;
+					console.log(app.imgServerUrl+qrcode);
+				}
+				//保存二维码到本地
+				document.getElementById("download_qrcode").addEventListener("tap",function(){
+					plus.nativeUI.showWaiting("下载中...");
+					var qrcode_downloader = plus.downloader.createDownload(
+						app.imgServerUrl+qrcode,
+						{},
+						function(download,status){
+							if(status==200){
+								plus.nativeUI.closeWaiting();
+								plus.gallery.save(download.filename,function(){
+									app.showToast("保存二维码成功","success");
+								});
+							}
+							else{
+								plus.nativeUI.closeWaiting();
+								app.showToast("保存二维码失败","error");
+								console.log("保存失败，状态码="+status);
+							}
+						}
+					);
+					qrcode_downloader.start();	
+				});
+				
+			})
+		</script>
+	</body>
+
+</html>

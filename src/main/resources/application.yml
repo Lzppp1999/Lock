@@ -1,0 +1,63 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /mychat_sys
+  tomcat:
+    max-http-form-post-size: -1
+spring:
+  datasource:
+    name: mychat_sys
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://139.224.210.78:3306/mychat?serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: Lzp1999
+    password: Lzploveyyx1314
+    filters: stat
+    initial-size: 2 #初始化连接数
+    max-idle: 10 #最大空闲连接数
+    min-idle: 1 #最小空闲连接数
+    max-active: 20 #最大活动连接
+    max-wait: 60000 #获取连接超时
+    time-between-evict-runs-millis: 60000 #间隔多久检测需要关闭的空闲连接
+    min-evictable-time-millis: 300000 #一个连接在池中的最小生存空间
+    validation-query: SELECT 'x' #验证连接有效与否的sql，不同数据配置不同
+    test-while-idle: true #指明连接是否被空闲连接回收器检验，检验失败则从池中去除
+    test-on-borrow: false #借出连接不进行测试，否则影响性能
+  mvc:
+    view:
+      suffix: .jsp
+  data:
+    mongodb:
+      host: 139.224.210.78
+      database: mails
+      port: 23333
+      username: mails
+      password: Lzploveyyx1314
+    redis:
+      repositories:
+        enabled: false
+  redis:
+    database: 0
+    host: 139.224.210.78
+    port: 6379
+    password: Lzploveyyx1314
+    timeout: 20000
+    lettuce:
+      pool:
+        max-wait: 60s
+        max-idle: 8
+        min-idle: 0
+        max-active: 8
+#      username: Lzp1999
+#      password: Lzploveyyx1314
+#fdfs服务器参数配置
+fdfs:
+  so-timeout: 1501
+  connect-timeout: 601
+  thumb-image:             #缩略图生成参数
+    width: 150
+    height: 150
+  tracker-list:            #TrackerList参数,支持多个
+    - 139.224.210.78:22122
+logging:
+  config: classpath:log4j2-sit.xml

@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">个人头像</h1>
+		</header>
+		<div class="mui-content">
+			<img id="myface" src="../images/bird.png" style="margin-top: 7.5rem;">
+		</div>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script type="text/javascript">
+			mui.init()
+			mui.plusReady(function () {
+			    var userInfo_json = app.getUserGlobalInfo();
+				var myface = document.getElementById("myface");
+				if(userInfo_json!=null){
+					var faceImgBig = userInfo_json.faceImageBig;
+					myface.src = app.imgServerUrl+faceImgBig;	
+				}
+				myface.width = document.body.clientWidth;
+				myface.height = document.body.clientWidth;
+				
+				
+			})
+		</script>
+	</body>
+
+</html>

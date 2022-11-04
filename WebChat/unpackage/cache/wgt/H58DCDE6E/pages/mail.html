@@ -1,0 +1,231 @@
+<!doctype html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<meta name="viewport"
+			content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link href="../css/mui.css" rel="stylesheet" />
+		<link href="../css/myClass.css" rel="stylesheet" />
+		<link href="../icon/iconfont.css" rel="stylesheet" />
+		<style>
+			body {
+				background-image: url(../images/indexBG.jpg);
+			}
+			
+			/* .mail {
+				border: 2px solid black;
+				width: 100%;
+				background-color: rgba(255,255,255,0);
+				padding: 8px 8px 8px 8px;
+			} */
+
+			.mailImg {
+				width: 100%;
+				border-radius: 5px;
+				margin: 0 auto;
+			}
+
+			#mailContent{
+				text-align: left;
+				color: #555555;
+				padding: 8px 8px 8px 8px;
+			}
+			
+			.footer-bar{
+				position: fixed;
+				bottom: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">Mail</h1>
+		</header>
+		<div class="mui-content index-body"   style="color: #555555;overflow: auto;height: 90%;">
+			<h3 id="dateHead" style="text-align: left;margin: 2px 0 2px 4px;"></h3>
+			<div contenteditable="true" id="mailContent" style="font-szie:16px;overflow: auto;height: 100%;">
+				<!-- <img src="../images/bird.png" class="mailImg"></img> -->
+			</div>
+		</div>
+		<!-- 底部选项卡 --> 
+		<nav class="mui-bar mui-bar-tab footer-bar">
+			<a class="mui-tab-item" tabindex="0">
+				<span class="mui-icon iconfont icon-tupian" id="insertImg"></span>
+				<span class="mui-tab-label">插入图片</span>
+			</a>
+			<a class="mui-tab-item" tabindex="1">
+				<span class="mui-icon iconfont icon-shangchuan" id="upload"></span>
+				<span class="mui-tab-label">上传Mail</span>
+			</a>
+		</nav>
+		<script src="../js/mui.js"></script>
+		<script src="../js/app.js"></script>
+		<script src="../js/jquery.js"></script>
+		<script type="text/javascript">
+			var thisWindow;
+			var loveMailWindow;
+			var dateStr;
+			var myInfo;
+			var lockInfo;
+			var mail_id;
+			mui.init();
+			mui.plusReady(function() {
+				myInfo = app.getUserGlobalInfo();
+				lockInfo = app.getContactList();
+				// 获取当前窗口
+				thisWindow = plus.webview.currentWebview();
+				loveMailWindow = plus.webview.getWebviewById("love_mail");
+				dateStr = thisWindow.dateStr;
+				//渲染日期标题
+				document.getElementById("dateHead").innerText = dateStr;
+				// 如果不是新建的mail，渲染mail到当前页面
+				mail_id = thisWindow.mail_id;
+				console.log(mail_id);
+				if (app.isNotNull(mail_id)) {
+					plus.nativeUI.showWaiting("正在加载mail");
+					mui.get(app.serverUrl + "user/getMailById", {
+							id: mail_id
+						},
+						function(result) {
+							if (result.status == 200) {
+								// console.log(result.data);
+								document.getElementById("mailContent").innerHTML = result.data;
+								plus.nativeUI.closeWaiting();
+							}
+						}, 'json');
+				}
+				thisWindow.setStyle({
+					softinputMode: "adjustResize"
+				});
+				resizeWebview();
+				// 键盘弹出时，消息显示最后一条
+				window.addEventListener("resize", function() {
+					resizeWebview();
+				})
+				//设置所有文本框可以自动调节高度
+				mui("#mailContent").on('input','.mail',function(e){
+					this.style.height = '0px';
+					this.style.height = e.target.scrollHeight + 'px';	
+				});
+				
+				//插入图片
+				var insertImg = document.getElementById("insertImg"); 
+				insertImg.addEventListener('tap', function() {
+					plus.gallery.pick(function(path) {
+						var reader = new plus.io.FileReader();
+						var mailContent = document.getElementById("mailContent");
+						// console.log(path);
+						var imgHtml = "";
+						plus.io.resolveLocalFileSystemURL(path, function(entry) {
+							// 可通过entry对象操作图片 
+							entry.file(function(file) {
+								reader.readAsDataURL(file);
+								reader.onloadend = function(e) {
+									// alert(e.target.result);
+									// console.log("进来")
+									var img = document.createElement("img");
+									img.src = e.target.result;
+									img.setAttribute("class","mailImg");
+									mailContent.appendChild(img);
+								}
+							}, function(e) {
+								console.log(e.message);
+							});
+						}, function(e) {
+							console.log(e.message);
+						});
+					},function(e){
+						console.log("取消选图");
+					},{filter: "image"});
+				});
+			});
+			
+			function resizeWebview() {
+				//获取聊天列表容器对象
+				var mailContent = document.getElementById("mailContent");
+				//设置聊天记录进入页面的时候自动滚动到最后一条
+				mailContent.scrollTop = mailContent.scrollHeight;
+				
+			}
+			
+			document.getElementById("upload").onclick = upload;
+			function upload() {
+				var content = document.getElementById("mailContent").innerHTML;
+				// alert(content);
+				//console.log(JSON.stringify(content));
+				content = app.trim(content);
+				if (content!=""&&content!=undefined&&content!=null) {
+					//mail_id不为空 说明已经上传过 现在为修改操作
+					if(app.isNotNull(mail_id)){
+						console.log(mail_id);
+						mui.ajax(app.serverUrl+"user/updateMailById", {
+							data: {
+								content: content,
+								id: mail_id
+							},
+							type: 'post',
+							timeout: 10000,
+							success: function(result) {
+								console.log(result.data);
+								if (result.status == 200 && result.data == 1) { //请求成功
+									app.showToast("上传成功","success");
+								} else {
+									app.showToast("上传失败", "error");	
+								}
+							},
+							error: function(XMLHttpRequest, textStatus, errorThrown) {
+								if (textStatus == "timeout") {
+									app.showToast("连接超时", "error");
+								} else if (textStatus == "error") {
+									app.showToast("连接错误", "error");
+								}
+							}
+						});
+					}else{
+						//上传今日mail 
+						var dateArr = dateStr.split('-');
+						var month = dateArr[0] + '-' + dateArr[1];
+						mui.ajax(app.serverUrl+"user/saveMail", {
+							data: {
+								writerId: myInfo.id,
+								readerId: lockInfo.id,
+								content: content,
+								dateStr: dateStr,
+								month: month
+							},
+							type: 'post',
+							timeout: 10000,
+							success: function(result) {
+								if (result.status == 200 && app.isNotNull(result.data)) { //请求成功
+									app.showToast("上传成功","success");
+									mail_id = result.data;
+									// console.log(mail_id);
+									loveMailWindow.evalJS("addMailSnap('" + dateStr +"','"+mail_id+"')");
+								} else {
+									app.showToast("上传失败", "error");	
+								}
+							},
+							error: function(XMLHttpRequest, textStatus, errorThrown) {
+								if (textStatus == "timeout") {
+									app.showToast("连接超时", "error");
+								} else if (textStatus == "error") {
+									app.showToast("连接错误", "error");
+								}
+							}
+						});
+						//app.saveMailSnapList(myInfo.id,dateStr,mail_id);
+					}
+					
+				} else {
+					app.showToast("你还什么都没写呢~", "error");
+				}
+			}
+		</script>
+	</body>
+
+</html>

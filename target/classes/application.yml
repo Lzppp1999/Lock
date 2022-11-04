@@ -1,0 +1,63 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /mychat_sys
+  tomcat:
+    max-http-form-post-size: -1
+spring:
+  datasource:
+    name: mychat_sys
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://139.224.210.78:3306/mychat?serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: Lzp1999
+    password: Lzploveyyx1314
+    filters: stat
+    initial-size: 2 #��ʼ��������
+    max-idle: 10 #������������
+    min-idle: 1 #��С����������
+    max-active: 20 #�������
+    max-wait: 60000 #��ȡ���ӳ�ʱ
+    time-between-evict-runs-millis: 60000 #�����ü����Ҫ�رյĿ�������
+    min-evictable-time-millis: 300000 #һ�������ڳ��е���С����ռ�
+    validation-query: SELECT 'x' #��֤������Ч����sql����ͬ�������ò�ͬ
+    test-while-idle: true #ָ�������Ƿ񱻿������ӻ��������飬����ʧ����ӳ���ȥ��
+    test-on-borrow: false #������Ӳ����в��ԣ�����Ӱ������
+  mvc:
+    view:
+      suffix: .jsp
+  data:
+    mongodb:
+      host: 139.224.210.78
+      database: mails
+      port: 23333
+      username: mails
+      password: Lzploveyyx1314
+    redis:
+      repositories:
+        enabled: false
+  redis:
+    database: 0
+    host: 139.224.210.78
+    port: 6379
+    password: Lzploveyyx1314
+    timeout: 20000
+    lettuce:
+      pool:
+        max-wait: 60s
+        max-idle: 8
+        min-idle: 0
+        max-active: 8
+#      username: Lzp1999
+#      password: Lzploveyyx1314
+#fdfs��������������
+fdfs:
+  so-timeout: 1501
+  connect-timeout: 601
+  thumb-image:             #����ͼ���ɲ���
+    width: 150
+    height: 150
+  tracker-list:            #TrackerList����,֧�ֶ��
+    - 139.224.210.78:22122
+logging:
+  config: classpath:log4j2-sit.xml
